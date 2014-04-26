@@ -116,7 +116,7 @@ packet* rotmg_receive_packet(conn* client)
 	int z = 0;
 	int r = 0;
 	errno = 0;
-	while (r < 4 && (z = read(client->client_socket, buffer_length, 4 - r)) > 0)
+	while (r < 4 && (z = recv(client->client_socket, buffer_length, 4 - r, MSG_WAITALL)) > 0)
 	{
     	r += z;
 	}
@@ -150,7 +150,7 @@ packet* rotmg_receive_packet(conn* client)
 	//read packet type
 	r = 0;
 	errno = 0;
-	r = read(client->client_socket, buffer_id, 1);
+	r = recv(client->client_socket, buffer_id, 1, MSG_WAITALL);
 	if (r == -1)
 	{
 		switch(errno)
@@ -176,7 +176,7 @@ packet* rotmg_receive_packet(conn* client)
 	z = 0;
 	errno = 0;
 	r = 0;
-	while (r < payload_length && (z = read(client->client_socket, buffer_payload, payload_length - r)) > 0)
+	while (r < payload_length && (z = recv(client->client_socket, buffer_payload, payload_length - r, MSG_WAITALL)) > 0)
 	{
     	r += z;
 	}
