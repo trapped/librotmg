@@ -36,6 +36,7 @@ void     rotmg_send_message   (conn* client, message* msg);
 //unexported
 char* reverse_endian(long length, char* buffer);
 unsigned char* ltoc(long num);
+long ctol(unsigned char* buffer);
 
 conn* rotmg_connect(char* server, int port)
 {
@@ -148,7 +149,7 @@ message* rotmg_receive_message(conn* client)
 	}
 	//convert packet length from bytes to long
 	//char* reversed_length = reverse_endian(buffer_length);
-	long payload_length = *((long*)buffer_length);
+	long payload_length = ctol(buffer_length);
 	free(buffer_length);
 	//free(reversed_length);
 	msg->length = payload_length;
