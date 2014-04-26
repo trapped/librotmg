@@ -160,7 +160,7 @@ message* rotmg_receive_message(conn* client)
 	{
 		int h = read(client->client_socket, buffer_payload, (payload_length) - r);
 		if (h == -1) { break; }
-		r = r + h;
+		r = h + r;
 	}
 	switch(errno)
 	{
