@@ -18,24 +18,31 @@ int main(int argc, char const *argv[])
 	connection->rc4_send_length = 13;
 	puts("set up rc4");
 
-	puts("creating message");
-	message* msg = malloc(sizeof(message));
+	puts("creating packet");
+	packet* msg = malloc(sizeof(packet));
 	msg->length = (long)5;
 	printf("%li\n", msg->length);
-	msg->payload = (char*)"dada!";
-	puts("created message");
+	msg->type = 0xff;
+	msg->payload = (unsigned char*)"dada!";
+	puts("created packet");
 
 	puts("sending data");
-	rotmg_send_message(connection, msg);
+	rotmg_send_packet(connection, msg);
 	puts("sent data");
 
 	free(msg);
 	sleep(5);
-	puts("receiving message");
-	message* recv = rotmg_receive_message(connection);
-	puts("received message");
+	puts("receiving packet");
+	packet* recv = rotmg_receive_packet(connection);
+	puts("received packet");
 
-	printf("message length: %li; message data: %s\n", recv->length, recv->payload);
+	if (recv == NULL)
+	{
+		puts("recv = NULL");
+		return 1;
+	}
+
+	printf("packet: length: %li id: %i data: %s\n", recv->length, recv->type, recv->payload);
 
 	free(recv);
 

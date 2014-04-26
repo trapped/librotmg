@@ -21,18 +21,19 @@ typedef struct conn
 	char* rc4_send;
 } conn;
 
-typedef struct message
+typedef struct packet
 {
 	long length;
+	unsigned char type;
 	unsigned char* payload;
-} message;
+} packet;
 
 //predeclare functions
 //exported
 conn*    rotmg_connect        (char* server, int port);
 void     rotmg_disconnect     (conn* client);
-message* rotmg_receive_message(conn* client);
-void     rotmg_send_message   (conn* client, message* msg);
+packet*  rotmg_receive_packet (conn* client);
+void     rotmg_send_packet    (conn* client, packet* pkt);
 //unexported
 char* reverse_endian(long length, char* buffer);
 unsigned char* ltoc(long num);
@@ -104,137 +105,148 @@ void rotmg_disconnect(conn* client)
 	free(client);
 }
 
-message* rotmg_receive_message(conn* client)
+packet* rotmg_receive_packet(conn* client)
 {
-	//prepare message struct
-	message* msg;
+	//prepare packet struct
+	packet* pkt;
 
 	//allocate buffer for server packet length (4 bytes)
 	unsigned char* buffer_length = malloc(sizeof(char) * 4);
 	//read 4 bytes into buffer_length
+	int z = 0;
 	int r = 0;
 	errno = 0;
-	while (r < 4 && errno == 0)
+	while (r < 4 && (z = read(client->client_socket, buffer_length, 4 - r)) > 0)
 	{
-		int h = read(client->client_socket, buffer_length, 4 - r);
-		if (h == -1) { break; }
-		r += h;
+    	r += z;
 	}
-	switch(errno)
+	if (z == -1)
 	{
-		case EBADF:
-			if (write(client->client_socket, buffer_length, 0) == -1)
-			{
-				perror("rotmg_receive: invalid socket descriptor");
+		switch(errno)
+		{
+			case EBADF:
+				perror("rotmg_receive_packet: invalid socket descriptor");
 				return NULL;
-			} break;		
-		case ECONNRESET:
-			if (write(client->client_socket, buffer_length, 0) == -1)
-			{
-				perror("rotmg_receive: connection reset");
+			case ECONNRESET:
+				perror("rotmg_receive_packet: connection reset");
 				return NULL;
-			} break;
-		case ENOTCONN:
-			if (write(client->client_socket, buffer_length, 0) == -1)
-			{
-				perror("rotmg_receive: socket not connected");
+			case ENOTCONN:
+				perror("rotmg_receive_packet: socket not connected");
 				return NULL;
-			} break;
-		case ETIMEDOUT:
-			if (write(client->client_socket, buffer_length, 0) == -1)
-			{
-				perror("rotmg_receive: timed out");
+			case ETIMEDOUT:
+				perror("rotmg_receive_packet: timed out");
 				return NULL;
-			} break;
+		}
 	}
 	//convert packet length from bytes to long
 	//char* reversed_length = reverse_endian(buffer_length);
 	long payload_length = ctol(buffer_length);
 	free(buffer_length);
 	//free(reversed_length);
-	msg->length = payload_length;
-	printf("read length: %li\n", payload_length);
+	//4 bytes of length and 1 of type
+	pkt->length = payload_length - 5;
+	//prepare packet type
+	unsigned char* buffer_id = malloc(2);
+	//read packet type
+	r = 0;
+	errno = 0;
+	r = read(client->client_socket, buffer_id, 1);
+	if (r == -1)
+	{
+		switch(errno)
+		{
+			case EBADF:
+				perror("rotmg_receive_packet: invalid socket descriptor");
+				return NULL;
+			case ECONNRESET:
+				perror("rotmg_receive_packet: connection reset");
+				return NULL;
+			case ENOTCONN:
+				perror("rotmg_receive_packet: socket not connected");
+				return NULL;
+			case ETIMEDOUT:
+				perror("rotmg_receive_packet: timed out");
+				return NULL;
+		}
+	}
+	pkt->type = buffer_id[0];
 	//allocate buffer for server packet payload
 	unsigned char* buffer_payload = malloc(sizeof(char) * (payload_length));
 	//read payload into buffer_payload
-	r = 0;
+	z = 0;
 	errno = 0;
-	while(r < (payload_length) && errno == 0)
+	r = 0;
+	while (r < payload_length && (z = read(client->client_socket, buffer_payload, payload_length - r)) > 0)
 	{
-		int h = read(client->client_socket, buffer_payload, payload_length - r);
-		if (h == -1) { break; }
-		r += h;
+    	r += z;
 	}
-	switch(errno)
+	if (z == -1)
 	{
-		case EBADF:
-			if (write(client->client_socket, buffer_length, 0) == -1)
-			{
-				perror("rotmg_receive: invalid socket descriptor");
+		switch(errno)
+		{
+			case EBADF:
+				perror("rotmg_receive_packet: invalid socket descriptor");
 				return NULL;
-			} break;		
-		case ECONNRESET:
-			if (write(client->client_socket, buffer_length, 0) == -1)
-			{
-				perror("rotmg_receive: connection reset");
+			case ECONNRESET:
+				perror("rotmg_receive_packet: connection reset");
 				return NULL;
-			} break;
-		case ENOTCONN:
-			if (write(client->client_socket, buffer_length, 0) == -1)
-			{
-				perror("rotmg_receive: socket not connected");
+			case ENOTCONN:
+				perror("rotmg_receive_packet: socket not connected");
 				return NULL;
-			} break;
-		case ETIMEDOUT:
-			if (write(client->client_socket, buffer_length, 0) == -1)
-			{
-				perror("rotmg_receive: timed out");
+			case ETIMEDOUT:
+				perror("rotmg_receive_packet: timed out");
 				return NULL;
-			} break;
+		}
 	}
 	//char* reversed_payload = reverse_endian(buffer_payload);
-	msg->payload = malloc(sizeof(buffer_payload));
-	strcpy(msg->payload, buffer_payload);
+	pkt->payload = malloc(sizeof(char)*payload_length);
+	strcpy(pkt->payload, buffer_payload);
 	free(buffer_payload);
-	//msg->payload = reversed_payload;
+	//pkt->payload = reversed_payload;
 
-	return msg;
+	return pkt;
 }
 
-void rotmg_send_message(conn* client, message* msg)
+void rotmg_send_packet(conn* client, packet* pkt)
 {
 	errno = 0;
 	//prepare buffer to send
-	unsigned char* payload = malloc(sizeof(char) * msg->length + 4);
+	unsigned char* payload = malloc(sizeof(char) * pkt->length + 5);
 	//convert length to bytes
-	long paylen = 0;
-	paylen += msg->length;
+	long paylen = 5;
+	paylen += pkt->length;
 	unsigned char* payload_length = ltoc(paylen);
 	memcpy(payload, payload_length, 4);
+	//add packet type
+	payload[4] = pkt->type;
 	//encrypt payload using rc4 key
-	unsigned char* encrypted = rc4_crypt((long)msg->length, msg->payload, client->rc4_send_length, client->rc4_send);
+	unsigned char* encrypted = rc4_crypt((long)pkt->length, pkt->payload, client->rc4_send_length, client->rc4_send);
 	//copy payload
-	memcpy(&payload[4], encrypted, msg->length);
+	memcpy(&payload[5], encrypted, pkt->length);
 	//write to socket
-	write(client->client_socket, payload, msg->length + 4);
+	int r = write(client->client_socket, payload, pkt->length + 5);
+	if (r == -1)
+	{
+		switch(errno)
+		{
+			case EBADF:
+				perror("rotmg_receive_packet: invalid socket descriptor");
+				return;
+			case ECONNRESET:
+				perror("rotmg_receive_packet: connection reset");
+				return;
+			case ENOTCONN:
+				perror("rotmg_receive_packet: socket not connected");
+				return;
+			case ETIMEDOUT:
+				perror("rotmg_receive_packet: timed out");
+				return;
+		}
+	}
 	//free memory
 	free(payload);
+	free(payload_length);
 	free(encrypted);
-	switch(errno)
-	{
-		case EBADF:
-			perror("rotmg_receive: invalid socket descriptor");
-			return;
-		case ECONNRESET:
-			perror("rotmg_receive: connection reset");
-			return;
-		case ENOTCONN:
-			perror("rotmg_receive: socket not connected");
-			return;
-		case ETIMEDOUT:
-			perror("rotmg_receive: timed out");
-			return;
-	}
 }
 
 char* reverse_endian(long length, char* buffer)
@@ -252,19 +264,19 @@ char* reverse_endian(long length, char* buffer)
 unsigned char* ltoc(long num)
 {
 	unsigned char* temp = malloc(sizeof(char)*4);
-	temp[3] = num;
-	temp[2] = num >> 8;
-	temp[1] = num >> 16;
-	temp[0] = num >> 24;
+	temp[0] = num;
+	temp[1] = num >> 8;
+	temp[2] = num >> 16;
+	temp[3] = num >> 24;
 	return temp;
 }
 
 long ctol(unsigned char* buffer)
 {
 	long temp = 0;
-	temp += buffer[3];
-	temp += buffer[2] << 8;
-	temp += buffer[1] << 16;
-	temp += buffer[0] << 24;
+	temp += buffer[0];
+	temp += buffer[1] << 8;
+	temp += buffer[2] << 16;
+	temp += buffer[3] << 24;
 	return temp;
 }

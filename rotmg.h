@@ -24,15 +24,16 @@ typedef struct conn
 	char* rc4_send;
 } conn;
 
-typedef struct message
+typedef struct packet
 {
 	long length;
-	char* payload;
-} message;
+	unsigned char type;
+	unsigned char* payload;
+} packet;
 
 conn*    rotmg_connect        (char* server, int port);
 void     rotmg_disconnect     (conn* client);
-message* rotmg_receive_message(conn* client);
-void     rotmg_send_message   (conn* client, message* msg);
+packet* rotmg_receive_packet(conn* client);
+void     rotmg_send_packet   (conn* client, packet* msg);
 
 #endif
