@@ -24,7 +24,7 @@ typedef struct conn
 typedef struct message
 {
 	long length;
-	char* payload;
+	unsigned char* payload;
 } message;
 
 //predeclare functions
@@ -34,8 +34,8 @@ void     rotmg_disconnect     (conn* client);
 message* rotmg_receive_message(conn* client);
 void     rotmg_send_message   (conn* client, message* msg);
 //unexported
-char* reverse_endian(char* buffer);
-char* ltoc(long num);
+char* reverse_endian(long length, char* buffer);
+unsigned char* ltoc(long num);
 
 conn* rotmg_connect(char* server, int port)
 {
@@ -109,13 +109,15 @@ message* rotmg_receive_message(conn* client)
 	message* msg;
 
 	//allocate buffer for server packet length (4 bytes)
-	char* buffer_length = malloc(sizeof(char) * 4);
+	unsigned char* buffer_length = malloc(sizeof(char) * 4);
 	//read 4 bytes into buffer_length
 	int r = 0;
 	errno = 0;
 	while (r < 4 && errno == 0)
 	{
-		r += read(client->client_socket, buffer_length, 4 - r);
+		int h = read(client->client_socket, buffer_length, 4 - r);
+		if (h == -1) { break; }
+		r += h;
 	}
 	switch(errno)
 	{
@@ -146,21 +148,21 @@ message* rotmg_receive_message(conn* client)
 	}
 	//convert packet length from bytes to long
 	//char* reversed_length = reverse_endian(buffer_length);
-	long payload_length = (long)buffer_length;
+	long payload_length = *((long*)buffer_length);
 	free(buffer_length);
 	//free(reversed_length);
-	msg->length = (payload_length);
-
+	msg->length = payload_length;
+	printf("read length: %li\n", payload_length);
 	//allocate buffer for server packet payload
-	char* buffer_payload = malloc(sizeof(char) * (payload_length));
+	unsigned char* buffer_payload = malloc(sizeof(char) * (payload_length));
 	//read payload into buffer_payload
 	r = 0;
 	errno = 0;
 	while(r < (payload_length) && errno == 0)
 	{
-		int h = read(client->client_socket, buffer_payload, (payload_length) - r);
+		int h = read(client->client_socket, buffer_payload, payload_length - r);
 		if (h == -1) { break; }
-		r = h + r;
+		r += h;
 	}
 	switch(errno)
 	{
@@ -202,13 +204,14 @@ void rotmg_send_message(conn* client, message* msg)
 {
 	errno = 0;
 	//prepare buffer to send
-	char* payload = malloc(sizeof(char) * msg->length + 4);
+	unsigned char* payload = malloc(sizeof(char) * msg->length + 4);
 	//convert length to bytes
-	long paylen = (long)sizeof(payload);
-	char* payload_length = ltoc(paylen);
+	long paylen = 0;
+	paylen += msg->length;
+	unsigned char* payload_length = ltoc(paylen);
 	memcpy(payload, payload_length, 4);
 	//encrypt payload using rc4 key
-	char* encrypted = rc4_crypt((long)msg->length, msg->payload, client->rc4_send_length, client->rc4_send);
+	unsigned char* encrypted = rc4_crypt((long)msg->length, msg->payload, client->rc4_send_length, client->rc4_send);
 	//copy payload
 	memcpy(&payload[4], encrypted, msg->length);
 	//write to socket
@@ -233,11 +236,11 @@ void rotmg_send_message(conn* client, message* msg)
 	}
 }
 
-char* reverse_endian(char* buffer)
+char* reverse_endian(long length, char* buffer)
 {
-	char* temp = malloc(sizeof(buffer));
+	char* temp = malloc(sizeof(char) * length);
 	int h = 0;
-	for (int i = sizeof(buffer); i > 0; i--)
+	for (int i = length; i > 0; i--)
 	{
 		temp[h] = buffer[i];
 		h++;
@@ -245,12 +248,22 @@ char* reverse_endian(char* buffer)
 	return temp;
 }
 
-char* ltoc(long num)
+unsigned char* ltoc(long num)
 {
-	char* temp = malloc(sizeof(char)*4);
+	unsigned char* temp = malloc(sizeof(char)*4);
 	temp[3] = num;
 	temp[2] = num >> 8;
 	temp[1] = num >> 16;
 	temp[0] = num >> 24;
+	return temp;
+}
+
+long ctol(unsigned char* buffer)
+{
+	long temp = 0;
+	temp += buffer[3];
+	temp += buffer[2] << 8;
+	temp += buffer[1] << 16;
+	temp += buffer[0] << 24;
 	return temp;
 }
