@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <string.h>
+
 //Adapted RC4 implementation by Brad Conte: http://bradconte.com/rc4_c
 
 // Key Scheduling Algorithm 

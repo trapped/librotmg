@@ -12,28 +12,32 @@
 #include <errno.h>
 #include <string.h>
 
-typedef struct conn
+//structs
+
+typedef struct rotmg_conn
 {
-	int client_socket;
-	int remote_port;
+	int   client_socket;
+	int   remote_port;
 	char* remote_address;
 
-	long rc4_receive_length;
+	long  rc4_receive_length;
 	char* rc4_receive;
-	long rc4_send_length;
+	long  rc4_send_length;
 	char* rc4_send;
-} conn;
+} rotmg_conn;
 
-typedef struct packet
+typedef struct rotmg_packet
 {
-	long length;
-	unsigned char type;
+	long           length;
+	unsigned char  type;
 	unsigned char* payload;
-} packet;
+} rotmg_packet;
 
-conn*    rotmg_connect        (char* server, int port);
-void     rotmg_disconnect     (conn* client);
-packet* rotmg_receive_packet(conn* client);
-void     rotmg_send_packet   (conn* client, packet* msg);
+//functions
+
+rotmg_conn*    rotmg_connect        (char* server, int port);
+void           rotmg_disconnect     (rotmg_conn* client);
+rotmg_packet*  rotmg_receive_packet (rotmg_conn* client);
+void           rotmg_send_packet    (rotmg_conn* client, rotmg_packet* msg);
 
 #endif

@@ -7,11 +7,17 @@ client:
 
 .PHONY: lib
 lib:
-	# librc4
-	#gcc -std=c99 -g -c fPIC rc4.c -o rc4.o
-	# librotmg
-	gcc -std=c99 -g -c -fPIC rotmg.c -lm -o rotmg.o
-	gcc -std=c99 -g -shared -Wl,-soname,librotmg.so -lm -o librotmg.so rotmg.o
+	# rc4
+	gcc -std=c99 -g -c -fPIC rc4.c -o rc4.o
+	# utils
+	gcc -std=c99 -g -c -fPIC utils.c -o utils.o
+	# packets
+	gcc -std=c99 -g -c -fPIC packets.c -o packets.o
+	# rotmg
+	gcc -std=c99 -g -c -fPIC rotmg.c -o rotmg.o
+	# librotmg (link)
+	gcc -std=c99 -g -shared -Wl,-soname,librotmg.so -lm -o librotmg.so rotmg.o rc4.o utils.o packets.o
+
 	cp ./librotmg.so /usr/lib
 
 .PHONY: echo

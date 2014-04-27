@@ -7,41 +7,43 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include "rc4.c"
+#include "utils.h"
+#include "rc4.h"
 
-typedef struct conn
+//structs
+
+typedef struct rotmg_conn
 {
-	int client_socket;
-	int remote_port;
+	int   client_socket;
+	int   remote_port;
 	char* remote_address;
 
-	long rc4_receive_length;
+	long  rc4_receive_length;
 	char* rc4_receive;
-	long rc4_send_length;
+	long  rc4_send_length;
 	char* rc4_send;
-} conn;
+} rotmg_conn;
 
-typedef struct packet
+typedef struct rotmg_packet
 {
-	long length;
-	unsigned char type;
+	long           length;
+	unsigned char  type;
 	unsigned char* payload;
-} packet;
+} rotmg_packet;
 
-//predeclare functions
-//exported
-conn*    rotmg_connect        (char* server, int port);
-void     rotmg_disconnect     (conn* client);
-packet*  rotmg_receive_packet (conn* client);
-void     rotmg_send_packet    (conn* client, packet* pkt);
-//unexported
-char* reverse_endian(long length, char* buffer);
-unsigned char* ltoc(long num);
-long ctol(unsigned char* buffer);
+//prototypes
 
-conn* rotmg_connect(char* server, int port)
+rotmg_conn*   rotmg_connect        (char* server, int port);
+void          rotmg_disconnect     (rotmg_conn* client);
+rotmg_packet* rotmg_receive_packet (rotmg_conn* client);
+void          rotmg_send_packet    (rotmg_conn* client, rotmg_packet* pkt);
+
+//functions
+
+rotmg_conn*
+rotmg_connect (char* server, int port)
 {
-	conn* cli = malloc(sizeof(conn));
+	rotmg_conn* cli = malloc(sizeof(rotmg_conn));
 	char* srv = malloc(strlen(server)+1);
 	strcpy(srv, server);
 	cli->remote_address = srv;
@@ -68,7 +70,8 @@ conn* rotmg_connect(char* server, int port)
 	return cli;
 }
 
-void rotmg_disconnect(conn* client)
+void
+rotmg_disconnect (rotmg_conn* client)
 {
 	//stop both receiving and transmitting
 	errno = 0;
@@ -105,10 +108,11 @@ void rotmg_disconnect(conn* client)
 	free(client);
 }
 
-packet* rotmg_receive_packet(conn* client)
+rotmg_packet*
+rotmg_receive_packet (rotmg_conn* client)
 {
 	//prepare packet struct
-	packet* pkt;
+	rotmg_packet* pkt = malloc(sizeof(rotmg_packet));
 
 	//allocate buffer for server packet length (4 bytes)
 	unsigned char* buffer_length = malloc(sizeof(char) * 4);
@@ -146,7 +150,7 @@ packet* rotmg_receive_packet(conn* client)
 	//4 bytes of length and 1 of type
 	pkt->length = payload_length - 5;
 	//prepare packet type
-	unsigned char* buffer_id = malloc(2);
+	unsigned char* buffer_id = malloc(1);
 	//read packet type
 	r = 0;
 	errno = 0;
@@ -170,13 +174,14 @@ packet* rotmg_receive_packet(conn* client)
 		}
 	}
 	pkt->type = buffer_id[0];
+	free(buffer_id);
 	//allocate buffer for server packet payload
 	unsigned char* buffer_payload = malloc(sizeof(char) * (payload_length));
 	//read payload into buffer_payload
 	z = 0;
 	errno = 0;
 	r = 0;
-	while (r < payload_length && (z = recv(client->client_socket, buffer_payload, payload_length - r, MSG_WAITALL)) > 0)
+	while (r < payload_length - 5 && (z = recv(client->client_socket, buffer_payload, (payload_length - 5) - r, MSG_WAITALL)) > 0)
 	{
     	r += z;
 	}
@@ -199,15 +204,20 @@ packet* rotmg_receive_packet(conn* client)
 		}
 	}
 	//char* reversed_payload = reverse_endian(buffer_payload);
-	pkt->payload = malloc(sizeof(char)*payload_length);
-	strcpy(pkt->payload, buffer_payload);
+	//decrypt packet
+	unsigned char* encrypted = rc4_crypt((long)payload_length - 5, buffer_payload, client->rc4_receive_length, client->rc4_receive);
+	//copy payload
+	pkt->payload = malloc(sizeof(char)*payload_length-5);
+	memcpy(pkt->payload, encrypted, payload_length-5);
 	free(buffer_payload);
+	free(encrypted);
 	//pkt->payload = reversed_payload;
 
 	return pkt;
 }
 
-void rotmg_send_packet(conn* client, packet* pkt)
+void
+rotmg_send_packet (rotmg_conn* client, rotmg_packet* pkt)
 {
 	errno = 0;
 	//prepare buffer to send
@@ -247,36 +257,4 @@ void rotmg_send_packet(conn* client, packet* pkt)
 	free(payload);
 	free(payload_length);
 	free(encrypted);
-}
-
-char* reverse_endian(long length, char* buffer)
-{
-	char* temp = malloc(sizeof(char) * length);
-	int h = 0;
-	for (int i = length; i > 0; i--)
-	{
-		temp[h] = buffer[i];
-		h++;
-	}
-	return temp;
-}
-
-unsigned char* ltoc(long num)
-{
-	unsigned char* temp = malloc(sizeof(char)*4);
-	temp[0] = num;
-	temp[1] = num >> 8;
-	temp[2] = num >> 16;
-	temp[3] = num >> 24;
-	return temp;
-}
-
-long ctol(unsigned char* buffer)
-{
-	long temp = 0;
-	temp += buffer[0];
-	temp += buffer[1] << 8;
-	temp += buffer[2] << 16;
-	temp += buffer[3] << 24;
-	return temp;
 }
