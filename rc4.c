@@ -44,7 +44,8 @@ void prga(unsigned char state[], unsigned char out[], int len)
 char* xor_encrypt(long message_length, char* message, long key_length, char* key)
 {
    char* encrypted = malloc(sizeof(char)*message_length);
-   for (int i = 0; i < message_length; i++)
+   int i = 0;
+   for (i = 0; i < message_length; i++)
    {
       encrypted[i] = message[i] ^ key[i % key_length];
    }
