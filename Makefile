@@ -7,9 +7,7 @@ client:
 
 .PHONY: lib
 lib: | utils rc4 rsa packets rotmg
-	#link
 	gcc -g -shared -Wl,-soname,librotmg.so -lm -lssl -lcrypto -o librotmg.so rotmg.o rc4.o rsa.o utils.o packets.o
-
 	cp ./librotmg.so /usr/lib
 
 .PHONY: rc4
