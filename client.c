@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "rotmg.h"
 #include "packets.h"
+#include "rsa.h"
 
 void test_send_norm(rotmg_conn* c);
 void test_send_failure(rotmg_conn* c);
@@ -9,9 +10,9 @@ void test_send_hello(rotmg_conn* c);
 int main(int argc, char const *argv[])
 {
 	//char* server = "76.100.53.170"; //case
-	//char* server = "127.0.0.1";
+	char* server = "127.0.0.1";
 	//char* server = "84.144.254.164"; //fab
-	char* server = "213.66.248.78"; //don
+	//char* server = "213.66.248.78"; //don
 	int port = 2050;
 
 	puts("connecting");
@@ -105,12 +106,35 @@ void test_send_failure(rotmg_conn* c)
 	free(recv);
 }
 
+typedef struct test_file_struct {
+	unsigned char* data;
+	long size;
+} test_file_struct;
+
+test_file_struct* get_pub_key()
+{
+	FILE* pubfile = fopen("pub", "rb");
+	fseek(pubfile, 0, SEEK_END);
+	long fsize = ftell(pubfile);
+	rewind(pubfile);
+	unsigned char* contents = malloc(fsize);
+	fread(contents, fsize, 1, pubfile);
+	fclose(pubfile);
+	test_file_struct* res = malloc(sizeof(test_file_struct));
+	res->data = contents;
+	res->size = fsize;
+	return res;
+}
+
 void test_send_hello(rotmg_conn* c)
 {
+	test_file_struct* pubkey = get_pub_key();
+	rsa_util* rsa = rsa_make(NULL, 0, pubkey->data, pubkey->size);
+
 	puts("creating hello packet");
 
 	rotmg_packet_hello* hello = malloc(sizeof(rotmg_packet_hello));
-	
+
 	hello->build_version = (unsigned char*)"123.5.1";
 	hello->build_version_length = 7;
 
@@ -132,7 +156,7 @@ void test_send_hello(rotmg_conn* c)
 	hello->playplatform = (unsigned char*)"playplatform";
 	hello->playplatform_length = 12;
 
-	rotmg_packet* msg = rotmg_strtopkt_hello(hello);
+	rotmg_packet* msg = rotmg_strtopkt_hello(hello, rsa);
 	puts("created packet");
 	free(hello);
 

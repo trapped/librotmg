@@ -7,7 +7,7 @@ client:
 
 .PHONY: lib
 lib: | utils rc4 rsa packets rotmg
-	gcc -g -shared -Wl,-soname,librotmg.so -lm -lssl -lcrypto -o librotmg.so rotmg.o rc4.o rsa.o utils.o packets.o
+	gcc -g -shared -Wl,-soname,librotmg.so -lm -lssl -lcrypto -o librotmg.so *.o packets/*.o
 	cp ./librotmg.so /usr/lib
 
 .PHONY: rc4
@@ -24,7 +24,8 @@ utils:
 
 .PHONY: packets
 packets: | utils rc4
-	gcc -g -c -fPIC packets.c -o packets.o
+	gcc -g -c -fPIC packets/hello.c -o packets/hello.o
+	gcc -g -c -fPIC packets/failure.c -o packets/failure.o
 
 .PHONY: rotmg
 rotmg: | rc4 utils packets
@@ -36,5 +37,5 @@ echo:
 
 .PHONY: clean
 clean:
-	rm -rf *.o *.so client echosrv
+	rm -rf *.o packets/*.o *.so client echosrv
 	rm -rf /usr/lib/librotmg.so

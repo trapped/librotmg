@@ -1,3 +1,7 @@
+#ifndef rsa_h
+
+#define rsa_h
+
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
@@ -17,10 +21,13 @@ typedef struct rsa_util {
 	char*  pub_key;
 } rsa_util;
 
-rsa_util*      rsa_make         (unsigned char* privkey, int privkey_length, unsigned char* pubkey, int pubkey_length);
+rsa_util*      rsa_make          (unsigned char* privkey, int privkey_length, unsigned char* pubkey, int pubkey_length);
 
-unsigned char* pub_encrypt      (unsigned char* data, int data_length, rsa_util* key);
-unsigned char* priv_encrypt     (unsigned char* data, int data_length, rsa_util* key);
-unsigned char* pub_decrypt      (unsigned char* data, int data_length, rsa_util* key);
-unsigned char* priv_decrypt     (unsigned char* data, int data_length, rsa_util* key);
-void           print_last_error (void);
+unsigned char* pub_encrypt       (unsigned char* data, int data_length, rsa_util* key);
+unsigned char* priv_encrypt      (unsigned char* data, int data_length, rsa_util* key);
+unsigned char* pub_decrypt       (unsigned char* data, int data_length, rsa_util* key);
+unsigned char* priv_decrypt      (unsigned char* data, int data_length, rsa_util* key);
+void           print_last_error  (void);
+int            get_modulus_bytes (RSA* rsa);
+
+#endif

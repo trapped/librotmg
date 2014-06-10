@@ -1,6 +1,7 @@
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#include <openssl/bn.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -132,11 +133,18 @@ priv_decrypt(unsigned char* data, int data_length, rsa_util* key)
 	}
 }
 
-void print_last_error()
+void
+print_last_error()
 {
 	char* err = malloc(sizeof(char) * 130);
 	ERR_load_crypto_strings();
 	ERR_error_string(ERR_get_error(), err);
 	printf("rsa error: %s\n", err);
 	free(err);
+}
+
+int
+get_modulus_bytes(RSA* rsa)
+{
+	return BN_num_bytes(rsa->n);
 }
