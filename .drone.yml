@@ -1,3 +1,4 @@
 image: trapped/rcgm:0.1
 script:
+	- apt-get install -qqy libssl-dev libedit-dev
 	- make
