@@ -1,0 +1,3 @@
+image: trapped/rcgm:0.1
+script:
+	- make

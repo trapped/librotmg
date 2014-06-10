@@ -183,7 +183,7 @@ rotmg_receive_packet (rotmg_conn* client)
 	r = 0;
 	while (r < payload_length - 5 && (z = recv(client->client_socket, buffer_payload, (payload_length - 5) - r, MSG_WAITALL)) > 0)
 	{
-    	r += z;
+		r += z;
 	}
 	if (z == -1)
 	{
