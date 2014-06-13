@@ -7,8 +7,7 @@
 // Input: state - the state used to generate the keystream
 //        key - Key to use to initialize the state 
 //        len - length of key in bytes  
-void ksa(unsigned char state[], unsigned char key[], int len)
-{
+void ksa(unsigned char state[], unsigned char key[], int len) {
    int i,j=0,t;
 
    for (i=0; i < 256; ++i)
@@ -25,12 +24,11 @@ void ksa(unsigned char state[], unsigned char key[], int len)
 // Input: state - the state used to generate the keystream 
 //        out - Must be of at least "len" length
 //        len - number of bytes to generate 
-void prga(unsigned char state[], unsigned char out[], int len)
-{
+void prga(unsigned char state[], unsigned char out[], int len) {
    int i=0,j=0,x,t;
    unsigned char key;
 
-   for (x=0; x < len; ++x)  {
+   for (x=0; x < len; ++x) {
       i = (i + 1) % 256;
       j = (j + state[i]) % 256;
       t = state[i];
@@ -41,23 +39,19 @@ void prga(unsigned char state[], unsigned char out[], int len)
 }
 
 //XOR encryption (data against key)
-char* xor_encrypt(long message_length, char* message, long key_length, char* key)
-{
+char* xor_encrypt(long message_length, char* message, long key_length, char* key) {
    char* encrypted = malloc(sizeof(char)*message_length);
    int i = 0;
-   for (i = 0; i < message_length; i++)
-   {
+   for (i = 0; i < message_length; i++) {
       encrypted[i] = message[i] ^ key[i % key_length];
    }
    return encrypted;
 }
 
 //Complete RC4 encryption (all-in-one)
-char* rc4_crypt(long message_length, char* message, long key_length, char* key)
-{
+char* rc4_crypt(long message_length, char* message, long key_length, char* key) {
    char* temp = malloc(sizeof(char)*message_length);
-   if (key_length == 0 || message_length == 0 || sizeof(message) == 0 || sizeof(key) == 0)
-   {
+   if (key_length == 0 || message_length == 0 || sizeof(message) == 0 || sizeof(key) == 0) {
       memcpy(temp, message, message_length);
       return temp;
    }

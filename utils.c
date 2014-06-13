@@ -9,6 +9,11 @@ short          ctos           (unsigned char* buffer);
 char*
 reverse_endian (long length, char* buffer)
 {
+	//char* swapped = ((buffer>>24)&0xff)	| // move byte 3 to byte 0
+	//				((buffer<<8)&0xff0000) | // move byte 1 to byte 2
+	//				((buffer>>8)&0xff00)	| // move byte 2 to byte 1
+	//				((buffer<<24)&0xff000000); // byte 0 to byte 3
+
 	char* temp = malloc(sizeof(char) * length);
 	int h = 0;
 	int i = 0;

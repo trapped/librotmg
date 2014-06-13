@@ -12,8 +12,7 @@
 
 //structs
 
-typedef struct rotmg_conn
-{
+typedef struct rotmg_conn {
 	int   client_socket;
 	int   remote_port;
 	char* remote_address;
@@ -24,8 +23,7 @@ typedef struct rotmg_conn
 	char* rc4_send;
 } rotmg_conn;
 
-typedef struct rotmg_packet
-{
+typedef struct rotmg_packet {
 	long           length;
 	unsigned char  type;
 	unsigned char* payload;
@@ -41,16 +39,14 @@ void          rotmg_send_packet    (rotmg_conn* client, rotmg_packet* pkt);
 //functions
 
 rotmg_conn*
-rotmg_connect (char* server, int port)
-{
+rotmg_connect (char* server, int port) {
 	rotmg_conn* cli = malloc(sizeof(rotmg_conn));
 	char* srv = malloc(strlen(server)+1);
 	strcpy(srv, server);
 	cli->remote_address = srv;
 	cli->remote_port = port;
 	//open socket
-	if ((cli->client_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-	{
+	if ((cli->client_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		perror("rotmg_connect: socket error");
 		exit(1);
 	}
@@ -60,8 +56,7 @@ rotmg_connect (char* server, int port)
 	server_addr.sin_port = htons(port);
 	server_addr.sin_addr.s_addr = inet_addr(server);
 	//connect socket
-	if ((connect(cli->client_socket, (struct sockaddr*)&server_addr, sizeof(server_addr))) == -1)
-	{
+	if ((connect(cli->client_socket, (struct sockaddr*)&server_addr, sizeof(server_addr))) == -1) {
 		perror("rotmg_connect: connect error");
 		exit(1);
 	}
@@ -71,13 +66,11 @@ rotmg_connect (char* server, int port)
 }
 
 void
-rotmg_disconnect (rotmg_conn* client)
-{
+rotmg_disconnect (rotmg_conn* client) {
 	//stop both receiving and transmitting
 	errno = 0;
 	shutdown(client->client_socket, 2);
-	switch(errno)
-	{
+	switch(errno) {
 		case EBADF:
 			perror("rotmg_disconnect: invalid socket descriptor");
 			return;
@@ -91,8 +84,7 @@ rotmg_disconnect (rotmg_conn* client)
 	//close the socket
 	errno = 0;
 	close(client->client_socket);
-	switch(errno)
-	{
+	switch(errno) {
 		case EBADF:
 			perror("rotmg_disconnect: invalid socket descriptor");
 			return;
@@ -109,8 +101,7 @@ rotmg_disconnect (rotmg_conn* client)
 }
 
 rotmg_packet*
-rotmg_receive_packet (rotmg_conn* client)
-{
+rotmg_receive_packet (rotmg_conn* client) {
 	//prepare packet struct
 	rotmg_packet* pkt = malloc(sizeof(rotmg_packet));
 
@@ -120,14 +111,11 @@ rotmg_receive_packet (rotmg_conn* client)
 	int z = 0;
 	int r = 0;
 	errno = 0;
-	while (r < 4 && (z = recv(client->client_socket, buffer_length, 4 - r, MSG_WAITALL)) > 0)
-	{
+	while (r < 4 && (z = recv(client->client_socket, buffer_length, 4 - r, MSG_WAITALL)) > 0) {
     	r += z;
 	}
-	if (z == -1)
-	{
-		switch(errno)
-		{
+	if (z == -1) {
+		switch(errno) {
 			case EBADF:
 				perror("rotmg_receive_packet: invalid socket descriptor");
 				return NULL;
@@ -144,7 +132,10 @@ rotmg_receive_packet (rotmg_conn* client)
 	}
 	//convert packet length from bytes to long
 	//char* reversed_length = reverse_endian(buffer_length);
+	char* buffer_lengthl = reverse_endian(4, buffer_length);
 	long payload_length = ctol(buffer_length);
+	//free(buffer_lengthl);
+	printf("recv-len: %ld\n", payload_length);
 	free(buffer_length);
 	//free(reversed_length);
 	//4 bytes of length and 1 of type
@@ -155,10 +146,8 @@ rotmg_receive_packet (rotmg_conn* client)
 	r = 0;
 	errno = 0;
 	r = recv(client->client_socket, buffer_id, 1, MSG_WAITALL);
-	if (r == -1)
-	{
-		switch(errno)
-		{
+	if (r == -1) {
+		switch(errno) {
 			case EBADF:
 				perror("rotmg_receive_packet: invalid socket descriptor");
 				return NULL;
@@ -181,14 +170,11 @@ rotmg_receive_packet (rotmg_conn* client)
 	z = 0;
 	errno = 0;
 	r = 0;
-	while (r < payload_length - 5 && (z = recv(client->client_socket, buffer_payload, (payload_length - 5) - r, MSG_WAITALL)) > 0)
-	{
+	while (r < payload_length - 5 && (z = recv(client->client_socket, buffer_payload, (payload_length - 5) - r, MSG_WAITALL)) > 0) {
 		r += z;
 	}
-	if (z == -1)
-	{
-		switch(errno)
-		{
+	if (z == -1) {
+		switch(errno) {
 			case EBADF:
 				perror("rotmg_receive_packet: invalid socket descriptor");
 				return NULL;
@@ -217,8 +203,7 @@ rotmg_receive_packet (rotmg_conn* client)
 }
 
 void
-rotmg_send_packet (rotmg_conn* client, rotmg_packet* pkt)
-{
+rotmg_send_packet (rotmg_conn* client, rotmg_packet* pkt) {
 	errno = 0;
 	//prepare buffer to send
 	unsigned char* payload = malloc(sizeof(char) * pkt->length + 5);
@@ -226,7 +211,9 @@ rotmg_send_packet (rotmg_conn* client, rotmg_packet* pkt)
 	long paylen = 5;
 	paylen += pkt->length;
 	unsigned char* payload_length = ltoc(paylen);
-	memcpy(payload, payload_length, 4);
+	unsigned char* payload_lengthl = reverse_endian(4, payload_length);
+	memcpy(payload, payload_lengthl, 4);
+	free(payload_lengthl);
 	//add packet type
 	payload[4] = pkt->type;
 	//encrypt payload using rc4 key
@@ -235,10 +222,8 @@ rotmg_send_packet (rotmg_conn* client, rotmg_packet* pkt)
 	memcpy(&payload[5], encrypted, pkt->length);
 	//write to socket
 	int r = write(client->client_socket, payload, pkt->length + 5);
-	if (r == -1)
-	{
-		switch(errno)
-		{
+	if (r == -1) {
+		switch(errno) {
 			case EBADF:
 				perror("rotmg_receive_packet: invalid socket descriptor");
 				return;
