@@ -15,12 +15,8 @@ reverse_endian (long length, char* buffer)
 	//				((buffer<<24)&0xff000000); // byte 0 to byte 3
 
 	char* temp = malloc(sizeof(char) * length);
-	int h = 0;
-	int i = 0;
-	for (i = length; i > 0; i--)
-	{
-		temp[h] = buffer[i];
-		h++;
+	for(int i = 0; i < length; i++) {
+		temp[i] = buffer[length - i - 1];
 	}
 	return temp;
 }

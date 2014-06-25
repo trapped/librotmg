@@ -75,7 +75,7 @@ rotmg_strtopkt_hello (rotmg_packet_hello* str, rsa_util* rsa)
 				(sizeof(char)*str->playplatform_length);
 
 	pkt->payload = malloc(size);
-	pkt->type = HELLO_2140;
+	pkt->type = HELLO_2210;
 	pkt->length = size;
 
 	int position = 0;

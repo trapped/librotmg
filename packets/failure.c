@@ -18,7 +18,7 @@ rotmg_strtopkt_failure (rotmg_packet_failure* str)
 				2;
 
 	pkt->payload = malloc(size);
-	pkt->type = FAILURE_2140;
+	pkt->type = FAILURE_2210;
 	pkt->length = size;
 
 	int position = 0;
