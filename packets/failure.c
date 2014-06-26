@@ -15,12 +15,12 @@ rotmg_strtopkt_failure (rotmg_packet_failure* str)
 	unsigned char* temp_el = stoc(str->error_message_length);
 	unsigned char* el = reverse_endian(2, temp_el);
 
-	rotmg_packet* pkt = malloc(sizeof(rotmg_packet));
+	rotmg_packet* pkt = calloc(1, sizeof(rotmg_packet));
 
 	long size = 2+
 				(sizeof(char)*str->error_message_length);
 
-	pkt->payload = malloc(size);
+	pkt->payload = calloc(1, size);
 	pkt->type = FAILURE_2210;
 	pkt->length = size;
 

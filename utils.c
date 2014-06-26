@@ -16,7 +16,7 @@ reverse_endian (long length, unsigned char* buffer) {
 	//				((buffer>>8)&0xff00)	| // move byte 2 to byte 1
 	//				((buffer<<24)&0xff000000); // byte 0 to byte 3
 
-	unsigned char* temp = malloc(sizeof(char) * length);
+	unsigned char* temp = calloc(1, sizeof(char) * length);
 	int i;
 	for(i = 0; i < length; i++) {
 		temp[i] = buffer[length - i - 1];
@@ -26,7 +26,7 @@ reverse_endian (long length, unsigned char* buffer) {
 
 unsigned char*
 ltoc (long num) {
-	unsigned char* temp = malloc(sizeof(char)*4);
+	unsigned char* temp = calloc(1, sizeof(char)*4);
 	temp[0] = num;
 	temp[1] = num >> 8;
 	temp[2] = num >> 16;
@@ -46,7 +46,7 @@ ctol (unsigned char* buffer) {
 
 unsigned char*
 stoc (short num) {
-	unsigned char* temp = malloc(sizeof(char)*2);
+	unsigned char* temp = calloc(1, sizeof(char)*2);
 	temp[0] = num;
 	temp[1] = num >> 8;
 	return temp;
@@ -66,7 +66,7 @@ ctos (unsigned char* buffer) {
 unsigned char*
 b64_enc (int length, unsigned char* data) {
 	int output_length = ((length - 1) / 3) * 4 + 4;
-	unsigned char* buffer = malloc(output_length+1);
+	unsigned char* buffer = calloc(1, output_length+1);
 	FILE* stream = fmemopen(buffer, output_length+1, "w");
 	BIO* b64 = BIO_new(BIO_f_base64());
 	BIO* bio = BIO_new_fp(stream, BIO_NOCLOSE);

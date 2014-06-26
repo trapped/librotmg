@@ -41,8 +41,8 @@ void          rotmg_send_packet    (rotmg_conn* client, rotmg_packet* pkt);
 
 rotmg_conn*
 rotmg_connect (char* server, int port) {
-	rotmg_conn* cli = malloc(sizeof(rotmg_conn));
-	char* srv = malloc(strlen(server)+1);
+	rotmg_conn* cli = calloc(1, sizeof(rotmg_conn));
+	char* srv = calloc(1, strlen(server)+1);
 	strcpy(srv, server);
 	cli->remote_address = srv;
 	cli->remote_port = port;
@@ -105,10 +105,10 @@ rotmg_disconnect (rotmg_conn* client) {
 rotmg_packet*
 rotmg_receive_packet (rotmg_conn* client) {
 	//prepare packet struct
-	rotmg_packet* pkt = malloc(sizeof(rotmg_packet));
+	rotmg_packet* pkt = calloc(1, sizeof(rotmg_packet));
 
 	//allocate buffer for server packet length (4 bytes)
-	unsigned char* buffer_length = malloc(sizeof(char) * 4);
+	unsigned char* buffer_length = calloc(1, sizeof(char) * 4);
 	//read 4 bytes into buffer_length
 	int z = 0;
 	int r = 0;
@@ -142,7 +142,7 @@ rotmg_receive_packet (rotmg_conn* client) {
 	//4 bytes of length and 1 of type
 	pkt->length = payload_length - 5;
 	//prepare packet type
-	unsigned char* buffer_id = malloc(1);
+	unsigned char* buffer_id = calloc(1, 1);
 	//read packet type
 	r = 0;
 	errno = 0;
@@ -166,7 +166,7 @@ rotmg_receive_packet (rotmg_conn* client) {
 	pkt->type = buffer_id[0];
 	free(buffer_id);
 	//allocate buffer for server packet payload
-	unsigned char* buffer_payload = malloc(sizeof(char) * (payload_length));
+	unsigned char* buffer_payload = calloc(1, sizeof(char) * (payload_length));
 	//read payload into buffer_payload
 	z = 0;
 	errno = 0;
@@ -194,7 +194,7 @@ rotmg_receive_packet (rotmg_conn* client) {
 	//decrypt packet
 	unsigned char* encrypted = rc4_crypt((long)payload_length - 5, buffer_payload, client->rc4_receive_length, client->rc4_receive);
 	//copy payload
-	pkt->payload = malloc(sizeof(char)*payload_length-5);
+	pkt->payload = calloc(1, sizeof(char)*payload_length-5);
 	memcpy(pkt->payload, encrypted, payload_length-5);
 	free(buffer_payload);
 	free(encrypted);
@@ -207,7 +207,7 @@ void
 rotmg_send_packet (rotmg_conn* client, rotmg_packet* pkt) {
 	errno = 0;
 	//prepare buffer to send
-	unsigned char* payload = malloc(sizeof(char) * pkt->length + 5);
+	unsigned char* payload = calloc(1, sizeof(char) * pkt->length + 5);
 	//convert length to bytes
 	long paylen = 5;
 	paylen += pkt->length;

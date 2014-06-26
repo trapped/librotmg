@@ -45,7 +45,7 @@ int main(int argc, char const *argv[]) {
 
 void test_send_norm(rotmg_conn* c) {
 	puts("creating packet");
-	rotmg_packet* msg = malloc(sizeof(rotmg_packet));
+	rotmg_packet* msg = calloc(1, sizeof(rotmg_packet));
 	msg->length = (long)5;
 	printf("%li\n", msg->length);
 	msg->type = 0xff;
@@ -75,7 +75,7 @@ void test_send_norm(rotmg_conn* c) {
 void test_send_failure(rotmg_conn* c) {
 	puts("creating failure packet");
 
-	rotmg_packet_failure* fail = malloc(sizeof(rotmg_packet_failure));
+	rotmg_packet_failure* fail = calloc(1, sizeof(rotmg_packet_failure));
 	fail->error_message = (unsigned char*)"error message";
 	fail->error_message_length = 13;
 
@@ -114,10 +114,10 @@ test_file_struct* get_pub_key() {
 	fseek(pubfile, 0, SEEK_END);
 	long fsize = ftell(pubfile);
 	rewind(pubfile);
-	unsigned char* contents = malloc(fsize);
+	unsigned char* contents = calloc(1, fsize);
 	fread(contents, fsize, 1, pubfile);
 	fclose(pubfile);
-	test_file_struct* res = malloc(sizeof(test_file_struct));
+	test_file_struct* res = calloc(1, sizeof(test_file_struct));
 	res->data = contents;
 	res->size = fsize;
 	return res;
@@ -129,7 +129,7 @@ void test_send_hello(rotmg_conn* c) {
 
 	puts("creating hello packet");
 
-	rotmg_packet_hello* hello = malloc(sizeof(rotmg_packet_hello));
+	rotmg_packet_hello* hello = calloc(1, sizeof(rotmg_packet_hello));
 
 	hello->build_version = (unsigned char*)"21.4.0";
 	hello->build_version_length = strlen((char*)hello->build_version);
@@ -149,19 +149,22 @@ void test_send_hello(rotmg_conn* c) {
 	hello->key_length = 0;
 	hello->key = (unsigned char*)"";
 
-	hello->playplatform = (unsigned char*)"rotmg";
-	hello->playplatform_length = strlen((char*)hello->playplatform);
-
 	rotmg_packet* msg = rotmg_strtopkt_hello(hello, rsa);
-	puts("created packet");
-	free(hello);
+	if(msg == NULL) {
+		puts("couldn't create packet");
+		free(hello);
+		return;
+	} else {
+		puts("created packet");
+		free(hello);
 
-	puts("sending data");
-	rotmg_send_packet(c, msg);
-	puts("sent data");
+		puts("sending data");
+		rotmg_send_packet(c, msg);
+		puts("sent data");
 
-	free(msg->payload);
-	free(msg);
+		free(msg->payload);
+		free(msg);
+	}
 	puts("receiving packet");
 	rotmg_packet* recv = rotmg_receive_packet(c);
 	puts("received packet");
