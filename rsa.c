@@ -14,8 +14,8 @@ typedef struct rsa_util {
 	RSA*   pub_key_rsa;
 	size_t priv_len;
 	size_t pub_len;
-	char*  priv_key;
-	char*  pub_key;
+	unsigned char*  priv_key;
+	unsigned char*  pub_key;
 } rsa_util;
 
 unsigned char* pub_encrypt      (unsigned char* data, int data_length, rsa_util* key);
@@ -54,13 +54,13 @@ rsa_make(unsigned char* privkey, int privkey_length, unsigned char* pubkey, int 
 
 unsigned char*
 pub_encrypt(unsigned char* data, int data_length, rsa_util* key) {
-	char* encrypted = malloc(sizeof(char) * RSA_size(key->pub_key_rsa));
+	unsigned char* encrypted = malloc(sizeof(char) * RSA_size(key->pub_key_rsa));
 	int result = RSA_public_encrypt(data_length, data, encrypted, key->pub_key_rsa, RSA_PKCS1_PADDING);
 	if (result == -1) {
 		free(encrypted);
 		return NULL;
 	} else {
-		char* enc = malloc(sizeof(char) * result);
+		unsigned char* enc = malloc(sizeof(char) * result);
 		memcpy(enc, encrypted, result);
 		free(encrypted);
 		return enc;
@@ -69,13 +69,13 @@ pub_encrypt(unsigned char* data, int data_length, rsa_util* key) {
 
 unsigned char*
 priv_encrypt(unsigned char* data, int data_length, rsa_util* key) {
-	char* encrypted = malloc(sizeof(char) * RSA_size(key->priv_key_rsa));
+	unsigned char* encrypted = malloc(sizeof(char) * RSA_size(key->priv_key_rsa));
 	int result = RSA_private_encrypt(data_length, data, encrypted, key->priv_key_rsa, RSA_PKCS1_PADDING);
 	if (result == -1) {
 		free(encrypted);
 		return NULL;
 	} else {
-		char* enc = malloc(sizeof(char) * result);
+		unsigned char* enc = malloc(sizeof(char) * result);
 		memcpy(enc, encrypted, result);
 		free(encrypted);
 		return enc;
@@ -84,13 +84,13 @@ priv_encrypt(unsigned char* data, int data_length, rsa_util* key) {
 
 unsigned char*
 pub_decrypt(unsigned char* data, int data_length, rsa_util* key) {
-	char* decrypted = malloc(sizeof(char) * RSA_size(key->pub_key_rsa));
+	unsigned char* decrypted = malloc(sizeof(char) * RSA_size(key->pub_key_rsa));
 	int result = RSA_public_decrypt(data_length, data, decrypted, key->pub_key_rsa, RSA_PKCS1_PADDING);
 	if (result == -1) {
 		free(decrypted);
 		return NULL;
 	} else {
-		char* dec = malloc(sizeof(char) * result);
+		unsigned char* dec = malloc(sizeof(char) * result);
 		memcpy(dec, decrypted, result);
 		free(decrypted);
 		return dec;
@@ -99,13 +99,13 @@ pub_decrypt(unsigned char* data, int data_length, rsa_util* key) {
 
 unsigned char*
 priv_decrypt(unsigned char* data, int data_length, rsa_util* key) {
-	char* decrypted = malloc(sizeof(char) * RSA_size(key->priv_key_rsa));
+	unsigned char* decrypted = malloc(sizeof(char) * RSA_size(key->priv_key_rsa));
 	int result = RSA_private_decrypt(data_length, data, decrypted, key->priv_key_rsa, RSA_PKCS1_PADDING);
 	if (result == -1) {
 		free(decrypted);
 		return NULL;
 	} else {
-		char* dec = malloc(sizeof(char) * result);
+		unsigned char* dec = malloc(sizeof(char) * result);
 		memcpy(dec, decrypted, result);
 		free(decrypted);
 		return dec;

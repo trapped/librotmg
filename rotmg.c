@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <errno.h>
@@ -18,9 +19,9 @@ typedef struct rotmg_conn {
 	char* remote_address;
 
 	long  rc4_receive_length;
-	char* rc4_receive;
+	unsigned char* rc4_receive;
 	long  rc4_send_length;
-	char* rc4_send;
+	unsigned char* rc4_send;
 } rotmg_conn;
 
 typedef struct rotmg_packet {
@@ -46,7 +47,8 @@ rotmg_connect (char* server, int port) {
 	cli->remote_address = srv;
 	cli->remote_port = port;
 	//open socket
-	if ((cli->client_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+	int flag = 1;
+	if ((cli->client_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1 || (setsockopt(cli->client_socket, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(int))) == -1) {
 		perror("rotmg_connect: socket error");
 		exit(1);
 	}
@@ -131,13 +133,12 @@ rotmg_receive_packet (rotmg_conn* client) {
 		}
 	}
 	//convert packet length from bytes to long
-	//char* reversed_length = reverse_endian(buffer_length);
-	char* buffer_lengthl = reverse_endian(4, buffer_length);
-	long payload_length = ctol(buffer_length);
+	unsigned char* buffer_lengthl = reverse_endian(4, buffer_length);
+	long payload_length = ctol(buffer_lengthl);
 	//free(buffer_lengthl);
 	printf("recv-len: %ld\n", payload_length);
 	free(buffer_length);
-	//free(reversed_length);
+	free(buffer_lengthl);
 	//4 bytes of length and 1 of type
 	pkt->length = payload_length - 5;
 	//prepare packet type
@@ -210,6 +211,7 @@ rotmg_send_packet (rotmg_conn* client, rotmg_packet* pkt) {
 	//convert length to bytes
 	long paylen = 5;
 	paylen += pkt->length;
+	printf("paylen: %d = 5 + %d\n", (int)paylen, (int)pkt->length);
 	unsigned char* payload_length = ltoc(paylen);
 	unsigned char* payload_lengthl = reverse_endian(4, payload_length);
 	memcpy(payload, payload_lengthl, 4);

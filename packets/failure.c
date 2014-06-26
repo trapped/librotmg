@@ -12,10 +12,13 @@ typedef struct rotmg_packet_failure {
 rotmg_packet*
 rotmg_strtopkt_failure (rotmg_packet_failure* str)
 {
+	unsigned char* temp_el = stoc(str->error_message_length);
+	unsigned char* el = reverse_endian(2, temp_el);
+
 	rotmg_packet* pkt = malloc(sizeof(rotmg_packet));
 
-	long size = (sizeof(char)*str->error_message_length)+
-				2;
+	long size = 2+
+				(sizeof(char)*str->error_message_length);
 
 	pkt->payload = malloc(size);
 	pkt->type = FAILURE_2210;
@@ -24,12 +27,9 @@ rotmg_strtopkt_failure (rotmg_packet_failure* str)
 	int position = 0;
 
 	//error_message_length
-	unsigned char* temp_el = stoc(str->error_message_length);
-	memcpy(
-		&(pkt->payload[position]),
-		temp_el,
-		2);
+	memcpy(&(pkt->payload[position]), el, 2);
 	free(temp_el);
+	free(el);
 	position += 2;
 
 	//error_message

@@ -17,8 +17,8 @@ typedef struct rsa_util {
 	RSA*   pub_key_rsa;
 	size_t priv_len;
 	size_t pub_len;
-	char*  priv_key;
-	char*  pub_key;
+	unsigned char*  priv_key;
+	unsigned char*  pub_key;
 } rsa_util;
 
 rsa_util*      rsa_make          (unsigned char* privkey, int privkey_length, unsigned char* pubkey, int pubkey_length);

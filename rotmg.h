@@ -21,9 +21,9 @@ typedef struct rotmg_conn
 	char* remote_address;
 
 	long  rc4_receive_length;
-	char* rc4_receive;
+	unsigned char* rc4_receive;
 	long  rc4_send_length;
-	char* rc4_send;
+	unsigned char* rc4_send;
 } rotmg_conn;
 
 typedef struct rotmg_packet

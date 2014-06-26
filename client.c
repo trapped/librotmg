@@ -7,24 +7,26 @@ void test_send_norm(rotmg_conn* c);
 void test_send_failure(rotmg_conn* c);
 void test_send_hello(rotmg_conn* c);
 
-int main(int argc, char const *argv[])
-{
+int main(int argc, char const *argv[]) {
 	//char* server = "76.100.53.170"; //case
+	//char* server = "69.140.1.203"; //case2
 	char* server = "127.0.0.1";
-	//char* server = "84.144.254.164"; //fab
+	//char* server = "91.53.233.49"; //fab
 	//char* server = "213.66.248.78"; //don
+	//char* server = "54.217.63.70"; //EUSouthWest
 	int port = 2050;
 
 	puts("connecting");
 	rotmg_conn* connection = rotmg_connect(server, port);
 	puts("connected");
-	printf("%i\n", connection->client_socket);
+	printf("socket id: %i\n", connection->client_socket);
 
 	puts("setting up rc4");
-	char rc4[] = {0x31, 0x1f, 0x80, 0x69, 0x14, 0x51, 0xc7, 0x1b, 0x09, 0xa1, 0x3a, 0x2a, 0x6e};
-	connection->rc4_send = rc4;
+	unsigned char rc4_sendk[] = {0x31, 0x1f, 0x80, 0x69, 0x14, 0x51, 0xc7, 0x1d, 0x09, 0xa1, 0x3a, 0x2a, 0x6e}; //0x1b for 123.5.1, 0x1d for 21.4.0
+	unsigned char rc4_recvk[] = {0x72, 0xc5, 0x58, 0x3c, 0xaf, 0xb6, 0x81, 0x89, 0x95, 0xcd, 0xd7, 0x4b, 0x80};
+	connection->rc4_send = rc4_sendk;
 	connection->rc4_send_length = 13;
-	connection->rc4_receive = rc4;
+	connection->rc4_receive = rc4_recvk;
 	connection->rc4_receive_length = 13;
 	puts("set up rc4");
 
@@ -41,8 +43,7 @@ int main(int argc, char const *argv[])
 	return 0;
 }
 
-void test_send_norm(rotmg_conn* c)
-{
+void test_send_norm(rotmg_conn* c) {
 	puts("creating packet");
 	rotmg_packet* msg = malloc(sizeof(rotmg_packet));
 	msg->length = (long)5;
@@ -60,8 +61,7 @@ void test_send_norm(rotmg_conn* c)
 	rotmg_packet* recv = rotmg_receive_packet(c);
 	puts("received packet");
 
-	if (recv == NULL)
-	{
+	if (recv == NULL) {
 		puts("recv = NULL");
 		exit(1);
 	}
@@ -72,8 +72,7 @@ void test_send_norm(rotmg_conn* c)
 	free(recv);
 }
 
-void test_send_failure(rotmg_conn* c)
-{
+void test_send_failure(rotmg_conn* c) {
 	puts("creating failure packet");
 
 	rotmg_packet_failure* fail = malloc(sizeof(rotmg_packet_failure));
@@ -94,8 +93,7 @@ void test_send_failure(rotmg_conn* c)
 	rotmg_packet* recv = rotmg_receive_packet(c);
 	puts("received packet");
 
-	if (recv == NULL)
-	{
+	if (recv == NULL) {
 		puts("recv = NULL");
 		exit(1);
 	}
@@ -111,9 +109,8 @@ typedef struct test_file_struct {
 	long size;
 } test_file_struct;
 
-test_file_struct* get_pub_key()
-{
-	FILE* pubfile = fopen("pub", "rb");
+test_file_struct* get_pub_key() {
+	FILE* pubfile = fopen("pubfsd", "rb");
 	fseek(pubfile, 0, SEEK_END);
 	long fsize = ftell(pubfile);
 	rewind(pubfile);
@@ -126,8 +123,7 @@ test_file_struct* get_pub_key()
 	return res;
 }
 
-void test_send_hello(rotmg_conn* c)
-{
+void test_send_hello(rotmg_conn* c) {
 	test_file_struct* pubkey = get_pub_key();
 	rsa_util* rsa = rsa_make(NULL, 0, pubkey->data, pubkey->size);
 
@@ -135,26 +131,26 @@ void test_send_hello(rotmg_conn* c)
 
 	rotmg_packet_hello* hello = malloc(sizeof(rotmg_packet_hello));
 
-	hello->build_version = (unsigned char*)"123.5.1";
-	hello->build_version_length = 7;
+	hello->build_version = (unsigned char*)"21.4.0";
+	hello->build_version_length = strlen((char*)hello->build_version);
 
-	hello->game_id = 12351;
+	hello->game_id = -2;
 
-	hello->guid = (unsigned char*)"xxx@gmail.com";
-	hello->guid_length = 13;
+	hello->guid = (unsigned char*)"trappedammy@pellero.it";
+	hello->guid_length = strlen((char*)hello->guid);
 
-	hello->password = (unsigned char*)"test";
-	hello->password_length = 4;
+	hello->password = (unsigned char*)"trapped";
+	hello->password_length = strlen((char*)hello->password);
 
-	hello->secret = (unsigned char*)"secret";
-	hello->secret_length = 6;
+	hello->secret = (unsigned char*)"";
+	hello->secret_length = strlen((char*)hello->secret);
 
-	hello->key_time = 13;
-	hello->key_length = 7;
-	hello->key = (unsigned char*)"key_length";
+	hello->key_time = -1;
+	hello->key_length = 0;
+	hello->key = (unsigned char*)"";
 
-	hello->playplatform = (unsigned char*)"playplatform";
-	hello->playplatform_length = 12;
+	hello->playplatform = (unsigned char*)"rotmg";
+	hello->playplatform_length = strlen((char*)hello->playplatform);
 
 	rotmg_packet* msg = rotmg_strtopkt_hello(hello, rsa);
 	puts("created packet");
@@ -170,8 +166,7 @@ void test_send_hello(rotmg_conn* c)
 	rotmg_packet* recv = rotmg_receive_packet(c);
 	puts("received packet");
 
-	if (recv == NULL)
-	{
+	if (recv == NULL) {
 		puts("recv = NULL");
 		exit(1);
 	}
