@@ -12,10 +12,10 @@ typedef struct rotmg_packet_hello {
 	unsigned char* build_version;
 	long           game_id;
 	short          guid_length;
-	unsigned char* guid;
+	unsigned char* guid; //rsa
 	long		   randomint1;
 	short          password_length;
-	unsigned char* password;
+	unsigned char* password; //rsa
 	long		   randomint2;
 	short          secret_length;
 	unsigned char* secret;
@@ -116,7 +116,7 @@ rotmg_strtopkt_hello (rotmg_packet_hello* str, rsa_util* rsa)
 		return NULL;
 	}
 
-	long size = (10*2)+(5*4)+
+	long size = (sizeof(short)*10)+(sizeof(long)*5)+
 				(sizeof(char)*str->build_version_length)+
 				(sizeof(char)*strlen((char*)encrypted_guid))+
 				(sizeof(char)*strlen((char*)encrypted_password))+

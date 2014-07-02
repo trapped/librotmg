@@ -2,6 +2,7 @@
 #include "rotmg.h"
 #include "packets.h"
 #include "rsa.h"
+#include "packet_ids.h"
 
 void test_send_norm(rotmg_conn* c);
 void test_send_failure(rotmg_conn* c);
@@ -9,8 +10,8 @@ void test_send_hello(rotmg_conn* c);
 
 int main(int argc, char const *argv[]) {
 	//char* server = "76.100.53.170"; //case
-	//char* server = "69.140.1.203"; //case2
-	char* server = "127.0.0.1";
+	char* server = "69.140.1.203"; //case2
+	//char* server = "127.0.0.1";
 	//char* server = "91.53.233.49"; //fab
 	//char* server = "213.66.248.78"; //don
 	//char* server = "54.217.63.70"; //EUSouthWest
@@ -165,16 +166,30 @@ void test_send_hello(rotmg_conn* c) {
 		free(msg->payload);
 		free(msg);
 	}
+Receive:
 	puts("receiving packet");
 	rotmg_packet* recv = rotmg_receive_packet(c);
 	puts("received packet");
 
-	if (recv == NULL) {
+	if (!recv) {
 		puts("recv = NULL");
 		exit(1);
 	}
 
-	printf("packet: length: %li id: %i data: %s\n", recv->length, recv->type, recv->payload);
+	printf("packet: length: %li id: %i\n", recv->length, recv->type);
+	for(int i = 0; i < recv->length; i++) {
+		printf("%02X ", recv->payload[i]);
+	}
+	printf("\n");
+	if(recv->type == FAILURE_2210) {
+		rotmg_packet_failure* failure = rotmg_pkttostr_failure(recv);
+		printf("failure: %d %ld '%s'\n", failure->error_message_length, failure->error_id, failure->error_message);
+		free(failure->error_message);
+		free(failure);
+		free(recv->payload);
+		free(recv);
+		goto Receive;
+	}
 
 	free(recv->payload);
 	free(recv);

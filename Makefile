@@ -35,7 +35,11 @@ rotmg: | rc4 utils packets
 echo:
 	gcc -g -std=c99 -funsigned-char -Wall echosrv.c -lm -o echosrv
 
+.PHONY: pktgen
+pktgen:
+	gcc -g -std=c99 -Wall pktgen.c -lmstrpc -o pktgen
+
 .PHONY: clean
 clean:
-	rm -rf *.o packets/*.o *.so client echosrv
+	rm -rf *.o packets/*.o *.so client echosrv pktgen
 	rm -rf /usr/lib/librotmg.so
