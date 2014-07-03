@@ -3,6 +3,9 @@ require 'parslet'
 require 'pp'
 require 'colorize'
 
+#
+# Code parsing
+#
 class Str < Parslet::Parser
 	rule(:s)       { match('\s').repeat 1                                                                                                 }
 	rule(:short)   { str('short').as(:short)                                                                                              }
@@ -26,6 +29,9 @@ rescue Parslet::ParseFailed => failure
 	exit 1
 end
 
+#
+# Utilities
+#
 def ppp(i, str)
 	print "#{"\t" * i}#{str}\n"
 end
@@ -44,6 +50,9 @@ def typeconv
 	}
 end
 
+#
+# Static analyzers
+#
 def scan_rsa(pkt)
 	res = []
 	pkt[:inline].each do |line|
@@ -52,81 +61,6 @@ def scan_rsa(pkt)
 		end
 	end
 	return res
-end
-
-def gen_strtopkt(pkt)
-	rsa_scan = scan_rsa pkt
-
-	i = 0
-
-	ppp i, "rotmg_packet*"
-	ppp i, "rotmg_strtopkt_#{pkt[:hpkt].to_s.reverse.chomp('rotmg_packet_'.reverse).reverse} (" +
-		   "#{pkt[:hpkt].to_s}* str#{rsa_scan.length > 0 ? ", rsa_util* rsa" : ''}) {"
-
-	i += 1
-
-	if rsa_scan.length > 0
-		ppp i, "//rsa encrypted data length"
-		ppp i, "short encrypted_length = (short)get_modulus_bytes(rsa->pub_key_rsa);"
-	end
-
-	pkt[:inline].each do |line|
-
-		type = line[:type].first[0]
-
-		if rsa_scan.include? line[:var].to_s
-
-			ppp i, "//encrypted #{line[:var].to_s} to base64"
-
-			ppp i, ["unsigned char*",
-					"temp_encrypted_#{line[:var].to_s}", "=",
-					"(unsigned char*)pub_encrypt",
-					"(str->#{line[:var].to_s},",
-					"str->#{line[:var].to_s}_length, rsa)"].join(' ') + ";"
-
-			ppp i, ["unsigned char*",
-					"encrypted_#{line[:var].to_s}", "=",
-					"(unsigned char*)b64_enc",
-					"((int)encrypted_length,",
-					"temp_encrypted_#{line[:var].to_s})"].join(' ') + ";"
-
-			ppp i, "free(temp_encrypted_#{line[:var].to_s};"
-
-
-			ppp i, "//encrypted #{line[:var].to_s} length"
-
-			ppp i, ["unsigned char*",
-					"temp_encrypted_#{line[:var].to_s}_length", "=",
-					"#{typeconv[:short]}",
-					"(strlen((char*)encrypted_#{line[:var].to_s}))"].join(' ') + ";"
-
-			ppp i, ["unsigned char*",
-					"encrypted_#{line[:var].to_s}_length", "=",
-					"reverse_endian(#{typesize[:short]}",
-					"temp_encrypted_#{line[:var].to_s})"].join(' ') + ";"
-
-			ppp i, "free(temp_encrypted_#{line[:var].to_s});"
-
-		elsif [:short, :long].include?(type) && !rsa_scan.include?(line[:var].to_s.chomp '_length')
-
-			ppp i, "//#{line[:var].to_s.tr '_', ' '}"
-
-			ppp i, ["unsigned char*",
-					"temp_#{line[:var].to_s}", "=",
-					"#{typeconv[type]}",
-					"(str->#{line[:var].to_s})"].join(' ') + ";"
-
-			ppp i, ["unsigned char*",
-					"#{line[:var].to_s}", "=",
-					"reverse_endian(#{typesize[type]},",
-					"temp_#{line[:var].to_s})"].join(' ') + ";"
-
-			ppp i, "free(temp_#{line[:var].to_s});"
-
-		end
-	end
-	i = 0
-	ppp i, '}'
 end
 
 def analyze(pkt)
@@ -157,10 +91,135 @@ def analyze(pkt)
 	return res.join "\n"
 end
 
-str = parse ARGF.read
-ana = analyze str
+#
+# Code generators
+#
+def gen_headers(rsa=false)
+	base = ['<stdlib.h>', '<string.h>']
+	rsa = ['<openssl/bio.h>', '<openssl/evp.h>', '"../rsa.h"']
+	external = ['"../utils.h"',	'"../rotmg.h"', '"../packet_ids.h"']
+
+	base.each { |h|	ppp 0, "\#include #{h}"	}
+
+	# two-pass since rsa.h should not be in /usr/include
+	rsa.each { |h| ppp 0, "\#include #{h}" if h[0] == '<' } if rsa
+
+	external.each { |h| ppp 0, "\#include #{h}" }
+
+	rsa.each { |h| ppp 0, "\#include #{h}" if h[0] == '"' } if rsa
+end
+
+def gen_rsa_modsize(rsa)
+	if rsa.length > 0
+		ppp 1, "//rsa encrypted data length"
+		ppp 1, "short encrypted_length = (short)get_modulus_bytes(rsa->pub_key_rsa);"
+	end
+end
+
+def gen_rsa_encrypt(var)
+	ppp 1, "//encrypted #{var} to base64"
+
+	# encrypt to rsa
+	ppp 1, ["unsigned char*",
+			"temp_encrypted_#{var}", "=",
+			"(unsigned char*)pub_encrypt",
+			"(str->#{var},",
+			"str->#{var}_length, rsa)"].join(' ') + ";"
+
+	# encode to base64
+	ppp 1, ["unsigned char*",
+			"encrypted_#{var}", "=",
+			"(unsigned char*)b64_enc",
+			"((int)encrypted_length,",
+			"temp_encrypted_#{var})"].join(' ') + ";"
+
+	# free temporary non-base64 data
+	ppp 1, "free(temp_encrypted_#{var};"
+
+
+	ppp 1, "//encrypted #{var} length"
+
+	# convert rsa modulus length to bytes
+	ppp 1, ["unsigned char*",
+			"temp_encrypted_#{var}_length", "=",
+			"#{typeconv[:short]}",
+			"(strlen((char*)encrypted_#{var}))"].join(' ') + ";"
+
+	# reverse endianness
+	ppp 1, ["unsigned char*",
+			"encrypted_#{var}_length", "=",
+			"reverse_endian(#{typesize[:short]}",
+			"temp_encrypted_#{var})"].join(' ') + ";"
+
+	# free temporary length bytes
+	ppp 1, "free(temp_encrypted_#{var});"
+end
+
+def gen_num_expand(type, var)
+	ppp 1, "//#{var.tr '_', ' '}"
+
+	# convert value to bytes
+	ppp 1, ["unsigned char*",
+			"temp_#{var}", "=",
+			"#{typeconv[type]}",
+			"(str->#{var})"].join(' ') + ";"
+
+	# reverse endianness
+	ppp 1, ["unsigned char*",
+			"#{var}", "=",
+			"reverse_endian(#{typesize[type]},",
+			"temp_#{var})"].join(' ') + ";"
+
+	# free temporary dat
+	ppp 1, "free(temp_#{var});"
+end
+
+def gen_strtopkt(rsa, pkt)
+	ppp 0, "rotmg_packet*"
+	ppp 0, "rotmg_strtopkt_#{pkt[:hpkt].to_s.reverse.chomp('rotmg_packet_'.reverse).reverse} (" +
+		   "#{pkt[:hpkt].to_s}* str#{rsa.length > 0 ? ", rsa_util* rsa" : ''}) {"
+
+	gen_rsa_modsize rsa
+
+	pkt[:inline].each do |line|
+
+		type = line[:type].first[0]
+
+		# needs rsa encryption?
+		if rsa.include? line[:var].to_s
+
+			gen_rsa_encrypt line[:var].to_s
+
+		# make sure it's not an rsa-encrypted field's length
+		elsif [:short, :long].include?(type) && !rsa.include?(line[:var].to_s.chomp '_length')
+
+			gen_num_expand type, line[:var].to_s
+
+		end
+	end
+	
+	ppp 0, '}'
+end
+
+def codegen(str, pkt)
+	# check if rsa is used
+	rsa = scan_rsa pkt
+
+	# include headers
+	gen_headers rsa.length > 0
+
+	# add original struct
+	puts "\n#{str}\n"
+
+	# serialization
+	gen_strtopkt rsa, pkt
+end
+
+str = ARGF.read
+pkt = parse str
+ana = analyze pkt
 if ana.length > 0
 	puts ana
 else
-	gen_strtopkt str
+	codegen str, pkt
 end
