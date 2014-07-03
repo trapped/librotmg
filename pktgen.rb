@@ -10,8 +10,7 @@ class Str < Parslet::Parser
 	rule(:binary)  { str('unsigned char*').as(:binary)                                                                                    }
 	rule(:type)    { short | long | binary                                                                                                }
 	rule(:name)    { match('[a-zA-Z_]') >> match('[a-zA-Z0-9_]').repeat                                                                   }
-	rule(:comment) { str '///'                                                                                                            }
-	rule(:opts)    { comment >> str('~rsa').as(:opt)                                                                                      }
+	rule(:opts)    { str('///') >> str('rsa').as(:opt) >> s.maybe                                                                           }
 	rule(:inline)  { s.maybe >> type.as(:type) >> s >> name.as(:var) >> s.maybe >> str(';') >> s.maybe >> opts.maybe.as(:opts) >> s.maybe }
 	rule(:header)  { str('typedef') >> s >> str('struct') >> s >> name.as(:hpkt) >> s.maybe >> str('{') >> s.maybe                        }
 	rule(:footer)  { s.maybe >> str('}') >> s.maybe >> name.as(:fpkt) >> s.maybe >> str(';')                                              }
@@ -45,15 +44,71 @@ def typeconv
 	}
 end
 
-def gen_strtopkt(pkt)
-	i = 0
-	ppp i, "rotmg_packet*"
-	ppp i, "rotmg_strtopkt_#{pkt[:hpkt].to_s} (#{pkt[:hpkt].to_s}* str) {"
-	i += 1
+def scan_rsa(pkt)
+	res = []
 	pkt[:inline].each do |line|
+		if line[:type].first[0] == :binary && line[:opts] && line[:opts][:opt] == "rsa"
+			res << line[:var].to_s
+		end
+	end
+	return res
+end
+
+def gen_strtopkt(pkt)
+	rsa_scan = scan_rsa pkt
+
+	i = 0
+
+	ppp i, "rotmg_packet*"
+	ppp i, "rotmg_strtopkt_#{pkt[:hpkt].to_s.reverse.chomp('rotmg_packet_'.reverse).reverse} (" +
+		   "#{pkt[:hpkt].to_s}* str#{rsa_scan.length > 0 ? ", rsa_util* rsa" : ''}) {"
+
+	i += 1
+
+	if rsa_scan.length > 0
+		ppp i, "//rsa encrypted data length"
+		ppp i, "short encrypted_length = (short)get_modulus_bytes(rsa->pub_key_rsa);"
+	end
+
+	pkt[:inline].each do |line|
+
 		type = line[:type].first[0]
-		# prepare shorts/longs
-		if [:short, :long].include? type
+
+		if rsa_scan.include? line[:var].to_s
+
+			ppp i, "//encrypted #{line[:var].to_s} to base64"
+
+			ppp i, ["unsigned char*",
+					"temp_encrypted_#{line[:var].to_s}", "=",
+					"(unsigned char*)pub_encrypt",
+					"(str->#{line[:var].to_s},",
+					"str->#{line[:var].to_s}_length, rsa)"].join(' ') + ";"
+
+			ppp i, ["unsigned char*",
+					"encrypted_#{line[:var].to_s}", "=",
+					"(unsigned char*)b64_enc",
+					"((int)encrypted_length,",
+					"temp_encrypted_#{line[:var].to_s})"].join(' ') + ";"
+
+			ppp i, "free(temp_encrypted_#{line[:var].to_s};"
+
+
+			ppp i, "//encrypted #{line[:var].to_s} length"
+
+			ppp i, ["unsigned char*",
+					"temp_encrypted_#{line[:var].to_s}_length", "=",
+					"#{typeconv[:short]}",
+					"(strlen((char*)encrypted_#{line[:var].to_s}))"].join(' ') + ";"
+
+			ppp i, ["unsigned char*",
+					"encrypted_#{line[:var].to_s}_length", "=",
+					"reverse_endian(#{typesize[:short]}",
+					"temp_encrypted_#{line[:var].to_s})"].join(' ') + ";"
+
+			ppp i, "free(temp_encrypted_#{line[:var].to_s});"
+
+		elsif [:short, :long].include?(type) && !rsa_scan.include?(line[:var].to_s.chomp '_length')
+
 			ppp i, "//#{line[:var].to_s.tr '_', ' '}"
 
 			ppp i, ["unsigned char*",
@@ -67,8 +122,7 @@ def gen_strtopkt(pkt)
 					"temp_#{line[:var].to_s})"].join(' ') + ";"
 
 			ppp i, "free(temp_#{line[:var].to_s});"
-		elsif line[:opts] && line[:opts][0][:opt] == "rsa"
-			# encrypt using rsa
+
 		end
 	end
 	i = 0
@@ -91,13 +145,13 @@ def analyze(pkt)
 		type = line[:type].first[0]
 		if type == :binary
 			binaries += 1
-		elsif type == :short and line[:var].to_s.end_with? '_length'
+		elsif [:short, :long].include? type and line[:var].to_s.end_with? '_length'
 			lengths += 1
 		end
 	end
 
 	if binaries != lengths
-		res << binaries > lengths ? "#{binaries - lengths} binary field(s) length missing".red : "#{lengths - binaries} unused length fields".yellow
+		res << (binaries > lengths ? "#{binaries - lengths} binary field(s) length missing".red : "#{lengths - binaries} unused length fields".yellow)
 	end
 
 	return res.join "\n"

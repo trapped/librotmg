@@ -14,10 +14,10 @@ typedef struct rotmg_packet_hello {
 	unsigned char* build_version;
 	long           game_id;
 	short          guid_length;
-	unsigned char* guid;
+	unsigned char* guid; ///rsa
 	long		   randomint1;
 	short          password_length;
-	unsigned char* password;
+	unsigned char* password; ///rsa
 	long		   randomint2;
 	short          secret_length;
 	unsigned char* secret;
