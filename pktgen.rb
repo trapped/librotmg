@@ -63,6 +63,22 @@ def scan_rsa(pkt)
 	return res
 end
 
+def scan_longs(pkt)
+	res = []
+	pkt[:inline].each do |line|
+		res << line[:var].to_s if line[:type].first[0] == :long
+	end
+	return res
+end
+
+def scan_shorts(pkt)
+	res = []
+	pkt[:inline].each do |line|
+		res << line[:var].to_s if line[:type].first[0] == :short
+	end
+	return res
+end
+
 def analyze(pkt)
 	res = []
 	
@@ -184,6 +200,38 @@ def gen_pkt_alloc(pkt)
 	ppp 1, "}"
 end
 
+def gen_payload_alloc(pkt)
+	ppp 1, "pkt->payload = calloc(1, size);"
+	ppp 1, "if(!pkt->payload) {"
+	ppp 2, 'puts("couldn\'t allocate memory for an ' +
+		pkt[:hpkt].to_s.reverse.chomp('rotmg_packet_'.reverse).reverse +
+		' packet\'s payload");'
+	ppp 1, "}"
+end
+
+def gen_pkt_size(pkt)
+	if pkt[:inline].length > 0
+		rsa = scan_rsa pkt
+		shorts = scan_shorts pkt
+		longs = scan_longs pkt
+
+		ppp 1, "long size = (sizeof(short)*#{shorts.length})+(sizeof(long)*#{longs.length})+"
+
+		i = 0
+		rsa.each do |l|
+			shorts.delete("#{l}_length")
+			longs.delete("#{l}_length")
+			ppp 4, "(sizeof(char)*strlen((char*)encrypted_#{l}))#{(shorts + longs).length > 0 && i != rsa.length-1 ? '+' : ';'}"
+			i += 1
+		end
+
+		i = 0
+		(shorts + longs).each do |l|
+			ppp 4, "(sizeof(char)*str->#{l}_length)#{(shorts + longs).length != i - 1 ? '+' : ';'}"
+		end
+	end
+end
+
 def gen_strtopkt(rsa, pkt)
 	ppp 0, "rotmg_packet*"
 	ppp 0, "rotmg_strtopkt_#{pkt[:hpkt].to_s.reverse.chomp('rotmg_packet_'.reverse).reverse} (" +
@@ -213,6 +261,14 @@ def gen_strtopkt(rsa, pkt)
 
 	# allocate memory for the packet
 	gen_pkt_alloc pkt
+
+	ppp 0, ""
+
+	# compose packet size
+	gen_pkt_size pkt
+
+	# allocate memory for packet payload
+	gen_payload_alloc pkt
 
 	ppp 0, '}'
 end
