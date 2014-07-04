@@ -174,6 +174,16 @@ def gen_num_expand(type, var)
 	ppp 1, "free(temp_#{var});"
 end
 
+def gen_pkt_alloc(pkt)
+	ppp 1, "rotmg_packet* pkt = calloc(1, sizeof(rotmg_packet));"
+	ppp 1, "if(!pkt) {"
+	ppp 2, 'puts("couldn\'t allocate memory for an ' +
+		pkt[:hpkt].to_s.reverse.chomp('rotmg_packet_'.reverse).reverse +
+		' packet");'
+	ppp 2, 'return NULL;'
+	ppp 1, "}"
+end
+
 def gen_strtopkt(rsa, pkt)
 	ppp 0, "rotmg_packet*"
 	ppp 0, "rotmg_strtopkt_#{pkt[:hpkt].to_s.reverse.chomp('rotmg_packet_'.reverse).reverse} (" +
@@ -181,6 +191,7 @@ def gen_strtopkt(rsa, pkt)
 
 	gen_rsa_modsize rsa
 
+	# preparation (value to binary conversion)
 	pkt[:inline].each do |line|
 
 		type = line[:type].first[0]
@@ -197,7 +208,12 @@ def gen_strtopkt(rsa, pkt)
 
 		end
 	end
-	
+
+	ppp 0, ""
+
+	# allocate memory for the packet
+	gen_pkt_alloc pkt
+
 	ppp 0, '}'
 end
 
