@@ -79,6 +79,28 @@ def scan_shorts(pkt)
 	return res
 end
 
+def scan_binaries(pkt)
+	res = []
+	pkt[:inline].each do |line|
+		if line[:type].first[0] == :binary
+			res << line[:var].to_s
+		end
+	end
+	return res
+end
+
+def scan_lengths(pkt)
+	bins = scan_binaries pkt
+	shorts = scan_shorts pkt
+	res = []
+	shorts.each do |s|
+		if s.end_with?('_length') && bins.include?(s.chomp('_length'))
+			res << s
+		end
+	end
+	return res
+end
+
 def analyze(pkt)
 	res = []
 	
@@ -193,7 +215,7 @@ end
 def gen_pkt_alloc(pkt)
 	ppp 1, "rotmg_packet* pkt = calloc(1, sizeof(rotmg_packet));"
 	ppp 1, "if(!pkt) {"
-	ppp 2, 'puts("couldn\'t allocate memory for an ' +
+	ppp 2, 'puts("couldn\'t allocate memory for a ' +
 		pkt[:hpkt].to_s.reverse.chomp('rotmg_packet_'.reverse).reverse +
 		' packet");'
 	ppp 2, 'return NULL;'
@@ -203,7 +225,7 @@ end
 def gen_payload_alloc(pkt)
 	ppp 1, "pkt->payload = calloc(1, size);"
 	ppp 1, "if(!pkt->payload) {"
-	ppp 2, 'puts("couldn\'t allocate memory for an ' +
+	ppp 2, 'puts("couldn\'t allocate memory for a ' +
 		pkt[:hpkt].to_s.reverse.chomp('rotmg_packet_'.reverse).reverse +
 		' packet\'s payload");'
 	ppp 1, "}"
@@ -214,20 +236,23 @@ def gen_pkt_size(pkt)
 		rsa = scan_rsa pkt
 		shorts = scan_shorts pkt
 		longs = scan_longs pkt
+		lengths = scan_lengths pkt
 
-		ppp 1, "long size = (sizeof(short)*#{shorts.length})+(sizeof(long)*#{longs.length})+"
+		ppp 1, "long size = (sizeof(short)*#{shorts.length})+(sizeof(long)*#{longs.length})#{(rsa + lengths).length > 0 ? '+' : ';'}"
 
 		i = 0
 		rsa.each do |l|
 			shorts.delete("#{l}_length")
 			longs.delete("#{l}_length")
-			ppp 4, "(sizeof(char)*strlen((char*)encrypted_#{l}))#{(shorts + longs).length > 0 && i != rsa.length-1 ? '+' : ';'}"
+			ppp 4, "(sizeof(char)*strlen((char*)encrypted_#{l}))#{lengths.length > 0 && i < rsa.length ? '+' : ';'}"
 			i += 1
 		end
 
 		i = 0
-		(shorts + longs).each do |l|
-			ppp 4, "(sizeof(char)*str->#{l}_length)#{(shorts + longs).length != i - 1 ? '+' : ';'}"
+		# change with binary check
+		lengths.each do |l|
+			ppp 4, "(sizeof(char)*str->#{l})#{lengths.length < i ? '+' : ';'}"
+			i += 1
 		end
 	end
 end
@@ -266,6 +291,8 @@ def gen_strtopkt(rsa, pkt)
 
 	# compose packet size
 	gen_pkt_size pkt
+
+	ppp 0, ""
 
 	# allocate memory for packet payload
 	gen_payload_alloc pkt
