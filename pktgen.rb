@@ -3,6 +3,8 @@ require 'parslet'
 require 'pp'
 require 'colorize'
 
+ROTMG_VERSION = 2210
+
 #
 # Code parsing
 #
@@ -296,6 +298,13 @@ def gen_strtopkt(rsa, pkt)
 
 	# allocate memory for packet payload
 	gen_payload_alloc pkt
+
+	ppp 1, "pkt->type = #{pkt[:hpkt].to_s.reverse.chomp('rotmg_packet_'.reverse).reverse.upcase!}_#{ROTMG_VERSION}"
+	ppp 1, "pkt->length = size;"
+
+	ppp 0, ""
+
+	ppp 1, "int position = 0;"
 
 	ppp 0, '}'
 end
