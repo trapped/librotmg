@@ -259,6 +259,15 @@ def gen_pkt_size(pkt)
 	end
 end
 
+def gen_memcpy(var, size, rsa, free)
+	ppp 1, "//#{var}"
+	ppp 1, "memcpy(&(pkt->payload[position]), #{var}, #{size});"
+	free.each do |f|
+		ppp 1, "free(#{f});"
+	end
+	ppp 1, "position += #{size};"
+end
+
 def gen_strtopkt(rsa, pkt)
 	ppp 0, "rotmg_packet*"
 	ppp 0, "rotmg_strtopkt_#{pkt[:hpkt].to_s.reverse.chomp('rotmg_packet_'.reverse).reverse} (" +
